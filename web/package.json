@@ -1,0 +1,12 @@
+{
+  "name": "gestion-gimnasio-web",
+  "version": "0.1.0",
+  "description": "API REST + panel de recepción - Reserva de Clases Grupales",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
