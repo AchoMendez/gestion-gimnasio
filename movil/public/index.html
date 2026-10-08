@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mi Gimnasio</title>
+<style>
+  :root { --wine:#9E1B4D; --orange:#C55A11; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, Arial, sans-serif; margin:0; background:#111; display:flex; justify-content:center; }
+  .phone { width: 360px; min-height: 100vh; background:#f7f3f5; box-shadow: 0 0 30px rgba(0,0,0,.5); }
+  .appbar { background:var(--wine); color:#fff; padding:16px; }
+  .appbar h1 { margin:0; font-size:17px; }
+  .appbar p { margin:4px 0 0; font-size:12px; opacity:.85; }
+  .lista { padding: 12px; }
+  .card { background:#fff; border-radius:10px; padding:14px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .card h3 { margin:0 0 4px; font-size:15px; }
+  .card p { margin:0; font-size:13px; color:#666; }
+  .cupo { font-weight:700; font-size:13px; margin-top:8px; }
+  .cupo.lleno { color:#c0392b; }
+  .cupo.poco { color:var(--orange); }
+  .cupo.ok { color:#1e7e34; }
+  button { width:100%; margin-top:10px; background:var(--orange); color:#fff; border:none; padding:10px; border-radius:8px; font-size:14px; }
+  button:disabled { background:#ccc; }
+  #msg { margin:0 12px 12px; padding:10px; border-radius:8px; font-size:13px; display:none; }
+  #msg.ok { background:#e6f4ea; color:#1e7e34; display:block; }
+  #msg.err { background:#fdecea; color:#c0392b; display:block; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="appbar">
+    <h1>🏋️ Mi Gimnasio</h1>
+    <p>Reserva tu clase · App del Socio</p>
+  </div>
+  <div id="msg"></div>
+  <div class="lista" id="lista">Cargando clases...</div>
+</div>
+
+<script>
+const SOCIO = "Socio Demo"; // en la app real vendría de la sesión iniciada
+
+async function cargarClases() {
+  const res = await fetch("/api/clases");
+  const clases = await res.json();
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+  clases.forEach((c) => {
+    let estado = "ok", texto = "Cupos disponibles";
+    if (c.cupo_disponible === 0) { estado = "lleno"; texto = "Sin cupos"; }
+    else if (c.cupo_disponible <= Math.ceil(c.cupo_total * 0.3)) { estado = "poco"; texto = "¡Últimos cupos!"; }
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <h3>${c.nombre}</h3>
+      <p>${c.horario}</p>
+      <div class="cupo ${estado}">${texto} (${c.cupo_disponible}/${c.cupo_total})</div>
+      <button data-id="${c.id}" ${c.cupo_disponible === 0 ? "disabled" : ""}>Reservar cupo</button>
+    `;
+    lista.appendChild(div);
+  });
+  document.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("click", () => reservar(btn.dataset.id));
+  });
+}
+
+async function reservar(claseId) {
+  const res = await fetch("/api/reservas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clase_id: claseId, socio: SOCIO }),
+  });
+  const data = await res.json();
+  const msg = document.getElementById("msg");
+  if (res.ok) {
+    msg.className = "ok";
+    msg.textContent = `¡Listo! Reservaste tu cupo en ${data.reserva.clase_nombre}.`;
+  } else {
+    msg.className = "err";
+    msg.textContent = data.error;
+  }
+  cargarClases();
+}
+
+cargarClases();
+</script>
+</body>
+</html>
