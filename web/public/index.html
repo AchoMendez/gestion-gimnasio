@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gimnasio · Panel de Recepción</title>
+<style>
+  :root { --wine:#9E1B4D; --orange:#C55A11; --gray:#404040; }
+  body { font-family: system-ui, Arial, sans-serif; margin:0; background:#f7f3f5; color:var(--gray); }
+  header { background:var(--wine); color:#fff; padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; font-size:13px; opacity:.85; }
+  main { max-width: 760px; margin: 24px auto; padding: 0 16px; }
+  table { width:100%; border-collapse: collapse; background:#fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  th, td { padding: 12px 14px; text-align:left; border-bottom:1px solid #eee; font-size:14px; }
+  th { background:var(--wine); color:#fff; }
+  .cupo { font-weight:600; }
+  .cupo.lleno { color:#c0392b; }
+  .cupo.poco { color:var(--orange); }
+  button { background:var(--orange); color:#fff; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:13px; }
+  button:disabled { background:#bbb; cursor:not-allowed; }
+  #msg { margin-top:14px; padding:10px 14px; border-radius:4px; font-size:14px; display:none; }
+  #msg.ok { background:#e6f4ea; color:#1e7e34; display:block; }
+  #msg.err { background:#fdecea; color:#c0392b; display:block; }
+  footer { text-align:center; color:#999; font-size:12px; margin:30px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏋️ Gestión de Gimnasio — Panel de Recepción</h1>
+  <p>Reserva de Clases Grupales · Issue #1 · HU-07</p>
+</header>
+<main>
+  <table id="tabla">
+    <thead>
+      <tr><th>Clase</th><th>Horario</th><th>Cupos</th><th></th></tr>
+    </thead>
+    <tbody id="cuerpo"><tr><td colspan="4">Cargando clases...</td></tr></tbody>
+  </table>
+  <div id="msg"></div>
+</main>
+<footer>Panel de recepción (producto web) · consume /api/clases y /api/reservas</footer>
+
+<script>
+async function cargarClases() {
+  const res = await fetch("/api/clases");
+  const clases = await res.json();
+  const cuerpo = document.getElementById("cuerpo");
+  cuerpo.innerHTML = "";
+  clases.forEach((c) => {
+    const tr = document.createElement("tr");
+    let clase = "cupo";
+    if (c.cupo_disponible === 0) clase += " lleno";
+    else if (c.cupo_disponible <= Math.ceil(c.cupo_total * 0.3)) clase += " poco";
+    tr.innerHTML = `
+      <td>${c.nombre}</td>
+      <td>${c.horario}</td>
+      <td class="${clase}">${c.cupo_disponible} / ${c.cupo_total}</td>
+      <td><button data-id="${c.id}" ${c.cupo_disponible === 0 ? "disabled" : ""}>Reservar</button></td>
+    `;
+    cuerpo.appendChild(tr);
+  });
+  document.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("click", () => reservar(btn.dataset.id));
+  });
+}
+
+async function reservar(claseId) {
+  const socio = prompt("Nombre del socio que reserva:");
+  if (!socio) return;
+  const res = await fetch("/api/reservas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clase_id: claseId, socio }),
+  });
+  const data = await res.json();
+  const msg = document.getElementById("msg");
+  if (res.ok) {
+    msg.className = "ok";
+    msg.textContent = `Reserva confirmada: ${data.reserva.socio} en ${data.reserva.clase_nombre}. Cupos restantes: ${data.clase.cupo_disponible}.`;
+  } else {
+    msg.className = "err";
+    msg.textContent = data.error;
+  }
+  cargarClases();
+}
+
+cargarClases();
+</script>
+</body>
+</html>
